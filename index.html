@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GCP Fullstack CI/CD Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #060810;
+    --bg-raised: #0D1018;
+    --bg-panel: #10141F;
+    --ink: #E7EAF2;
+    --ink-dim: #8C93A6;
+    --line: #1E2433;
+    --ci: #4F8DFF;
+    --deploy: #34F5A3;
+    --build: #FFB23D;
+    --ci-dim: rgba(79,141,255,0.14);
+    --deploy-dim: rgba(52,245,163,0.14);
+    --build-dim: rgba(255,178,61,0.14);
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+
+  *{margin:0; padding:0; box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  body::before{
+    content:'';
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 56px 56px;
+    opacity:0.2;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  .wrap{max-width: 1180px; margin:0 auto; padding: 0 32px; position:relative; z-index:2;}
+  a{color:var(--ci); text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  ::selection{background: var(--ci); color:#060810;}
+
+  code{
+    font-family:var(--font-mono);
+    background: var(--bg-raised);
+    padding:2px 6px;
+    border-radius:4px;
+    font-size:0.85em;
+    border:1px solid var(--line);
+  }
+
+  /* ===== NAV ===== */
+  nav{
+    position:sticky; top:0; z-index:100;
+    backdrop-filter: blur(10px);
+    background: rgba(6,8,16,0.78);
+    border-bottom:1px solid var(--line);
+  }
+  nav .wrap{ display:flex; align-items:center; justify-content:space-between; height:62px; }
+  .nav-brand{
+    font-family: var(--font-display);
+    font-weight:700; font-size:1rem;
+    display:flex; align-items:center; gap:10px;
+    color:var(--ink);
+  }
+  .nav-brand .led{
+    width:7px; height:7px; border-radius:50%;
+    background: var(--deploy);
+    box-shadow:0 0 8px var(--deploy);
+    animation: blink 2.2s ease-in-out infinite;
+  }
+  @keyframes blink{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+  .nav-links{display:flex; gap:26px; font-size:0.8rem; color:var(--ink-dim);}
+  .nav-links a{color:var(--ink-dim);}
+  .nav-links a:hover{color:var(--ink); text-decoration:none;}
+  @media (max-width:760px){ .nav-links{display:none;} }
+
+  /* ===== HERO / 3D STAGE ===== */
+  .hero{ position:relative; padding-top:28px; }
+  .hero-copy{ padding: 56px 0 18px; position:relative; z-index:2; }
+  .eyebrow{
+    font-size:0.74rem;
+    color:var(--ci);
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    display:flex; align-items:center; gap:8px;
+    margin-bottom:18px;
+  }
+  .eyebrow::before{ content:''; width:6px; height:6px; background:var(--ci); border-radius:50%; box-shadow:0 0 8px var(--ci); }
+
+  h1{
+    font-family:var(--font-display);
+    font-size: clamp(2rem, 4.4vw, 3.3rem);
+    font-weight:700;
+    letter-spacing:-0.02em;
+    line-height:1.08;
+    margin-bottom:18px;
+    max-width: 760px;
+  }
+  h1 .accent{ color:var(--ci); }
+  h1 .accent2{ color:var(--deploy); }
+
+  .hero-copy p.lead{
+    color:var(--ink-dim);
+    font-size:1rem;
+    max-width: 560px;
+    margin-bottom:8px;
+    font-family: var(--font-display);
+    font-weight: 400;
+  }
+
+  .stage-hint{
+    font-size:0.75rem;
+    color:var(--ink-dim);
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top: 18px;
+  }
+  .stage-hint .kbd{
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:2px 7px;
+    background: var(--bg-raised);
+  }
+
+  #stage3d-wrap{
+    position:relative;
+    width:100%;
+    height: 78vh;
+    min-height: 520px;
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    background: radial-gradient(ellipse at 50% 35%, #0B0F1C, var(--bg) 70%);
+    cursor: grab;
+  }
+  #stage3d-wrap:active{ cursor: grabbing; }
+  #stage3d-wrap canvas{ display:block; width:100%; height:100%; }
+
+  #stage-loading{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:0.8rem; color:var(--ink-dim);
+    z-index:5;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .spinner{
+    width:22px; height:22px;
+    border:2px solid var(--line);
+    border-top-color: var(--ci);
+    border-radius:50%;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  /* node info panel that appears on click */
+  #node-panel{
+    position:absolute;
+    top:24px; right:24px;
+    width: 300px;
+    max-width: calc(100% - 48px);
+    background: rgba(13,16,24,0.92);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px 22px;
+    backdrop-filter: blur(8px);
+    z-index: 10;
+    transform: translateX(12px);
+    opacity:0;
+    pointer-events:none;
+    transition: all 0.25s ease;
+  }
+  #node-panel.visible{ transform: translateX(0); opacity:1; pointer-events:auto; }
+  #node-panel .panel-tag{
+    font-size:0.68rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    padding:3px 8px;
+    border-radius:4px;
+    display:inline-block;
+    margin-bottom:12px;
+  }
+  #node-panel h3{
+    font-family:var(--font-display);
+    font-size:1.05rem;
+    color:var(--ink);
+    margin-bottom:8px;
+  }
+  #node-panel p{ font-size:0.82rem; color:var(--ink-dim); margin-bottom:12px; line-height:1.55; }
+  #node-panel .panel-meta{
+    display:flex; justify-content:space-between;
+    font-size:0.72rem; color:var(--ink-dim);
+    padding-top:10px;
+    border-top:1px solid var(--line);
+  }
+  #node-panel .panel-close{
+    position:absolute; top:14px; right:16px;
+    color:var(--ink-dim);
+    cursor:pointer;
+    font-size:0.9rem;
+    background:none; border:none;
+  }
+  #node-panel .panel-close:hover{ color:var(--ink); }
+
+  .stage-legend{
+    position:absolute;
+    bottom:20px; left:24px;
+    display:flex; gap:18px;
+    font-size:0.72rem;
+    color:var(--ink-dim);
+    z-index:6;
+  }
+  .stage-legend span{ display:flex; align-items:center; gap:6px; }
+  .stage-legend .dot{ width:7px; height:7px; border-radius:50%; }
+  @media (max-width: 640px){ .stage-legend{ display:none; } }
+
+  /* ===== SECTIONS ===== */
+  section{ padding: 84px 0; border-top:1px solid var(--line); }
+  .sec-head{ margin-bottom:44px; max-width:680px; }
+  .sec-num{ font-size:0.74rem; color:var(--ink-dim); margin-bottom:10px; display:block; }
+  h2{
+    font-family:var(--font-display);
+    font-size: clamp(1.45rem, 3vw, 2rem);
+    font-weight:600;
+    letter-spacing:-0.01em;
+    margin-bottom:12px;
+  }
+  .sec-head p{ color:var(--ink-dim); font-size:0.92rem; }
+
+  /* pipeline stage cards (text version, below the 3d) */
+  .pipeline-grid{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap:1px;
+    background: var(--line);
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  @media (max-width:900px){ .pipeline-grid{grid-template-columns:1fr 1fr;} }
+  @media (max-width:540px){ .pipeline-grid{grid-template-columns:1fr;} }
+  .pipeline-card{ background: var(--bg-panel); padding:24px 20px; }
+  .pipeline-card .pc-tag{
+    font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em;
+    padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:14px;
+  }
+  .pipeline-card h3{ font-family:var(--font-display); font-size:0.95rem; color:var(--ink); margin-bottom:6px; }
+  .pipeline-card p{ font-size:0.8rem; color:var(--ink-dim); }
+
+  /* stack grid */
+  .stack-grid{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap:1px;
+    background: var(--line);
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  @media (max-width:860px){ .stack-grid{grid-template-columns:1fr;} }
+  .stack-card{ background: var(--bg-panel); padding:26px 24px; }
+  .stack-card .tag{
+    font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em;
+    padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:16px;
+  }
+  .stack-card ul{ list-style:none; display:flex; flex-direction:column; gap:9px; }
+  .stack-card li{ font-size:0.85rem; color:var(--ink); display:flex; align-items:center; gap:9px; }
+  .stack-card li::before{ content:''; width:5px; height:5px; border-radius:50%; background:var(--ink-dim); flex-shrink:0; }
+
+  /* GCP services table */
+  .svc-table{ width:100%; border-collapse:collapse; font-size:0.85rem; }
+  .svc-table th, .svc-table td{ text-align:left; padding:13px 10px; border-bottom:1px solid var(--line); }
+  .svc-table th{ color:var(--ink-dim); text-transform:uppercase; font-size:0.68rem; letter-spacing:0.05em; }
+  .svc-table td.svc-name{ color:var(--ink); font-family:var(--font-display); font-weight:500; }
+  .svc-table td.svc-role{ color:var(--ink-dim); }
+  .svc-table tr:last-child td{ border-bottom:none; }
+
+  /* code block */
+  .code-block{
+    background:#08090F;
+    border:1px solid var(--line);
+    border-radius:12px;
+    overflow:hidden;
+    margin: 26px 0;
+  }
+  .code-head{
+    display:flex; align-items:center; gap:8px;
+    padding:11px 16px;
+    border-bottom:1px solid var(--line);
+    font-size:0.74rem;
+    color:var(--ink-dim);
+  }
+  .code-head .dots{display:flex; gap:5px; margin-right:6px;}
+  .code-head .dots span{width:8px;height:8px;border-radius:50%;background:var(--line);}
+  pre{
+    padding:20px 22px;
+    overflow-x:auto;
+    font-size:0.8rem;
+    line-height:1.65;
+    color:#C7CCDA;
+  }
+  pre .kw{color:var(--ci);}
+  pre .str{color:var(--build);}
+  pre .com{color:var(--ink-dim);}
+  pre .fn{color:var(--deploy);}
+
+  /* monitoring strip */
+  .mon-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  @media (max-width:760px){ .mon-grid{grid-template-columns:1fr;} }
+  .mon-card{ background:var(--bg-panel); padding:24px 22px; }
+  .mon-card .mon-label{ font-size:0.72rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px; }
+  .mon-card .mon-value{ font-family:var(--font-display); font-size:1.6rem; color:var(--deploy); margin-bottom:6px; }
+  .mon-card .mon-sub{ font-size:0.78rem; color:var(--ink-dim); }
+
+  footer{ padding:44px 0 60px; border-top:1px solid var(--line); text-align:center; }
+  footer p{ color:var(--ink-dim); font-size:0.8rem; }
+  footer .footer-dots{ display:flex; gap:6px; justify-content:center; margin-bottom:16px; }
+  footer .footer-dots span{ width:6px; height:6px; border-radius:50%; }
+  footer .footer-dots span:nth-child(1){background:var(--ci);}
+  footer .footer-dots span:nth-child(2){background:var(--build);}
+  footer .footer-dots span:nth-child(3){background:var(--deploy);}
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; }
+  }
+  a:focus-visible, button:focus-visible{ outline:2px solid var(--ci); outline-offset:2px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="nav-brand"><span class="led"></span>gcp-cicd-platform</div>
+    <div class="nav-links">
+      <a href="#pipeline">Pipeline</a>
+      <a href="#stack">Stack</a>
+      <a href="#servicos">Serviços GCP</a>
+      <a href="#workflow">Workflow</a>
+      <a href="#monitoramento">Monitoramento</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap hero-copy">
+    <span class="eyebrow">infra-as-code · ci/cd · gcp</span>
+    <h1>Do <span class="accent">git push</span> ao serviço rodando em <span class="accent2">produção</span>, em uma cadeia só.</h1>
+    <p class="lead">Cada commit dispara o pipeline abaixo — em 3D, e de verdade.</p>
+    <div class="stage-hint">
+      <span class="kbd">arraste</span> para orbitar · <span class="kbd">clique</span> em um nó para ver os detalhes · <span class="kbd">scroll</span> para zoom
+    </div>
+  </div>
+
+  <div id="stage3d-wrap">
+    <div id="stage-loading"><div class="spinner"></div><span>inicializando a cena 3D…</span></div>
+    <div id="node-panel">
+      <button class="panel-close" id="panel-close">✕</button>
+      <span class="panel-tag" id="panel-tag"></span>
+      <h3 id="panel-title"></h3>
+      <p id="panel-desc"></p>
+      <div class="panel-meta">
+        <span id="panel-meta-left"></span>
+        <span id="panel-meta-right"></span>
+      </div>
+    </div>
+    <div class="stage-legend">
+      <span><span class="dot" style="background:var(--ci)"></span>CI / build</span>
+      <span><span class="dot" style="background:var(--build)"></span>artefato</span>
+      <span><span class="dot" style="background:var(--deploy)"></span>deploy ativo</span>
+    </div>
+  </div>
+</header>
+
+<section id="pipeline">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-num">01 · arquitetura</span>
+      <h2>Oito estações, uma esteira</h2>
+      <p>O mesmo pipeline da cena acima, em texto — da versão do código ao serviço observável em produção.</p>
+    </div>
+
+    <div class="pipeline-grid">
+      <div class="pipeline-card">
+        <span class="pc-tag" style="background:var(--ci-dim); color:var(--ci);">01</span>
+        <h3>GitHub</h3>
+        <p>Push ou merge na branch principal dispara o workflow.</p>
+      </div>
+      <div class="pipeline-card">
+        <span class="pc-tag" style="background:var(--ci-dim); color:var(--ci);">02</span>
+        <h3>GitHub Actions</h3>
+        <p>Orquestra build, testes e empacotamento em paralelo.</p>
+      </div>
+      <div class="pipeline-card">
+        <span class="pc-tag" style="background:var(--ci-dim); color:var(--ci);">03</span>
+        <h3>Build Backend</h3>
+        <p>Compila e testa a API Node.js.</p>
+      </div>
+      <div class="pipeline-card">
+        <span class="pc-tag" style="background:var(--ci-dim); color:var(--ci);">04</span>
+        <h3>Build Frontend</h3>
+        <p>Compila e otimiza o bundle React.</p>
+      </div>
+      <div class="pipeline-card">
+        <span class="pc-tag" style="background:var(--build-dim); color:var(--build);">05</span>
+        <h3>Docker Build</h3>
+        <p>Empacota backend e frontend em imagens independentes.</p>
+      </div>
+      <div class="pipeline-card">
+        <span class="pc-tag" style="background:var(--build-dim); color:var(--build);">06</span>
+        <h3>Artifact Registry</h3>
+        <p>Armazena as imagens versionadas, prontas para deploy.</p>
+      </div>
+      <div class="pipeline-card">
+        <span class="pc-tag" style="background:var(--deploy-dim); color:var(--deploy);">07</span>
+        <h3>Terraform Apply</h3>
+        <p>Provisiona ou atualiza a infraestrutura declarada em código.</p>
+      </div>
+      <div class="pipeline-card">
+        <span class="pc-tag" style="background:var(--deploy-dim); color:var(--deploy);">08</span>
+        <h3>Cloud Run + Cloud SQL</h3>
+        <p>Os serviços sobem com a nova versão, monitorados em tempo real.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-num">02 · tecnologias</span>
+      <h2>Stack completa</h2>
+      <p>Aplicação, infraestrutura e automação tratadas como código, do mesmo jeito, na mesma esteira.</p>
+    </div>
+    <div class="stack-grid">
+      <div class="stack-card">
+        <span class="tag" style="background:var(--ci-dim); color:var(--ci);">Aplicação</span>
+        <ul>
+          <li>Node.js (backend)</li>
+          <li>React (frontend)</li>
+          <li>Docker</li>
+        </ul>
+      </div>
+      <div class="stack-card">
+        <span class="tag" style="background:var(--build-dim); color:var(--build);">Infraestrutura</span>
+        <ul>
+          <li>Terraform (IaC)</li>
+          <li>Google Artifact Registry</li>
+          <li>Cloud Run</li>
+          <li>Cloud SQL</li>
+        </ul>
+      </div>
+      <div class="stack-card">
+        <span class="tag" style="background:var(--deploy-dim); color:var(--deploy);">CI/CD &amp; Observabilidade</span>
+        <ul>
+          <li>GitHub Actions</li>
+          <li>Google Cloud Operations Suite</li>
+          <li>Cloud Logging</li>
+          <li>Cloud Monitoring</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="servicos">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-num">03 · gcp</span>
+      <h2>Serviços do Google Cloud envolvidos</h2>
+      <p>Cada serviço cumpre um papel específico na cadeia de deploy.</p>
+    </div>
+    <table class="svc-table">
+      <thead><tr><th>Serviço</th><th>Papel no pipeline</th></tr></thead>
+      <tbody>
+        <tr><td class="svc-name">Artifact Registry</td><td class="svc-role">Armazena as imagens Docker versionadas do backend e do frontend.</td></tr>
+        <tr><td class="svc-name">Cloud Run (Backend)</td><td class="svc-role">Executa a API Node.js como serviço serverless, escalando sob demanda.</td></tr>
+        <tr><td class="svc-name">Cloud Run (Frontend)</td><td class="svc-role">Serve o bundle React de forma independente do backend.</td></tr>
+        <tr><td class="svc-name">Cloud SQL</td><td class="svc-role">Banco de dados relacional gerenciado, provisionado via Terraform.</td></tr>
+        <tr><td class="svc-name">Cloud Operations Suite</td><td class="svc-role">Centraliza logs e métricas dos serviços em produção.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="workflow">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-num">04 · automação</span>
+      <h2>O workflow, de ponta a ponta</h2>
+      <p>GitHub Actions cuida do build e push das imagens; Terraform cuida da infraestrutura.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-head"><span class="dots"><span></span><span></span><span></span></span> .github/workflows/deploy.yml</div>
+      <pre><span class="kw">name</span>: Deploy to GCP
+<span class="kw">on</span>:
+  push:
+    branches: [<span class="str">main</span>]
+
+<span class="kw">jobs</span>:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - <span class="kw">uses</span>: actions/checkout@v4
+      - <span class="kw">name</span>: <span class="fn">Build backend image</span>
+        run: docker build -t $REGISTRY/backend:$GITHUB_SHA ./backend
+      - <span class="kw">name</span>: <span class="fn">Build frontend image</span>
+        run: docker build -t $REGISTRY/frontend:$GITHUB_SHA ./frontend
+      - <span class="kw">name</span>: <span class="fn">Push to Artifact Registry</span>
+        run: |
+          docker push $REGISTRY/backend:$GITHUB_SHA
+          docker push $REGISTRY/frontend:$GITHUB_SHA
+
+  terraform-deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - <span class="kw">uses</span>: hashicorp/setup-terraform@v3
+      - <span class="kw">name</span>: <span class="fn">Apply infrastructure</span>
+        run: |
+          terraform init
+          terraform apply -auto-approve \
+            -var <span class="str">"image_tag=$GITHUB_SHA"</span></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-head"><span class="dots"><span></span><span></span><span></span></span> infra/cloud_run.tf</div>
+      <pre><span class="kw">resource</span> <span class="str">"google_cloud_run_v2_service"</span> <span class="str">"backend"</span> {
+  name     = <span class="str">"cloudpay-backend"</span>
+  location = <span class="str">"us-central1"</span>
+
+  template {
+    containers {
+      image = <span class="str">"${var.registry}/backend:${var.image_tag}"</span>
+      env {
+        name  = <span class="str">"DATABASE_URL"</span>
+        value = google_sql_database_instance.main.connection_name
+      }
+    }
+  }
+}</pre>
+    </div>
+  </div>
+</section>
+
+<section id="monitoramento">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-num">05 · observabilidade</span>
+      <h2>Monitoramento contínuo</h2>
+      <p>Logs e métricas de cada serviço centralizados no Cloud Operations Suite, desde o primeiro deploy.</p>
+    </div>
+    <div class="mon-grid">
+      <div class="mon-card">
+        <div class="mon-label">Cloud Logging</div>
+        <div class="mon-value">stdout/stderr</div>
+        <div class="mon-sub">Logs estruturados de backend e frontend, centralizados por serviço.</div>
+      </div>
+      <div class="mon-card">
+        <div class="mon-label">Cloud Monitoring</div>
+        <div class="mon-value">latência · erros</div>
+        <div class="mon-sub">Métricas de requests, latência e taxa de erro do Cloud Run.</div>
+      </div>
+      <div class="mon-card">
+        <div class="mon-label">Alertas</div>
+        <div class="mon-value">configuráveis</div>
+        <div class="mon-sub">Políticas de alerta acionadas por limites de erro ou latência.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-dots"><span></span><span></span><span></span></div>
+    <p>GCP Fullstack CI/CD Platform · GitHub Actions · Terraform · Cloud Run · Cloud SQL</p>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const wrap = document.getElementById('stage3d-wrap');
+  const loading = document.getElementById('stage-loading');
+  const panel = document.getElementById('node-panel');
+  const panelTag = document.getElementById('panel-tag');
+  const panelTitle = document.getElementById('panel-title');
+  const panelDesc = document.getElementById('panel-desc');
+  const panelMetaL = document.getElementById('panel-meta-left');
+  const panelMetaR = document.getElementById('panel-meta-right');
+  const panelClose = document.getElementById('panel-close');
+
+  if(typeof THREE === 'undefined'){
+    loading.innerHTML = '<span>Não foi possível carregar a cena 3D (sem conexão com o CDN). Veja a arquitetura na seção abaixo.</span>';
+    return;
+  }
+
+  // ---- node data: matches the pipeline architecture ----
+  const COLORS = { ci: 0x4F8DFF, build: 0xFFB23D, deploy: 0x34F5A3 };
+  const nodeData = [
+    { id:'github', label:'GitHub', tag:'origem', cat:'ci', x:-9, y:2.6, z:0,
+      desc:'Repositório com o código de backend e frontend. Cada push na branch principal dispara o pipeline.',
+      meta1:'branch: main', meta2:'trigger: push' },
+    { id:'actions', label:'GitHub Actions', tag:'ci/cd', cat:'ci', x:-6, y:0.5, z:1.4,
+      desc:'Orquestra os jobs de build, teste e empacotamento, em paralelo para backend e frontend.',
+      meta1:'runner: ubuntu-latest', meta2:'jobs: 2 paralelos' },
+    { id:'build-be', label:'Build Backend', tag:'build', cat:'ci', x:-3.2, y:2.8, z:-1.6,
+      desc:'Compila e testa a API Node.js antes de gerar a imagem Docker.',
+      meta1:'runtime: node 20', meta2:'etapa: 3/8' },
+    { id:'build-fe', label:'Build Frontend', tag:'build', cat:'ci', x:-3.2, y:-1.6, z:1.8,
+      desc:'Compila e otimiza o bundle de produção do React.',
+      meta1:'runtime: vite build', meta2:'etapa: 4/8' },
+    { id:'registry', label:'Artifact Registry', tag:'artefato', cat:'build', x:0, y:0.4, z:0,
+      desc:'Armazena as imagens Docker versionadas por commit, prontas para deploy.',
+      meta1:'tag: $GITHUB_SHA', meta2:'etapa: 5/8' },
+    { id:'terraform', label:'Terraform Apply', tag:'iac', cat:'build', x:3, y:2.4, z:-1.2,
+      desc:'Aplica o estado declarado em código: cria ou atualiza os recursos na GCP.',
+      meta1:'state: gcs backend', meta2:'etapa: 7/8' },
+    { id:'run-be', label:'Cloud Run · Backend', tag:'deploy', cat:'deploy', x:6.4, y:3.2, z:0.8,
+      desc:'Executa a API como serviço serverless, escalando automaticamente sob demanda.',
+      meta1:'região: us-central1', meta2:'status: ativo' },
+    { id:'run-fe', label:'Cloud Run · Frontend', tag:'deploy', cat:'deploy', x:6.4, y:0.4, z:2.2,
+      desc:'Serve o bundle React de forma independente, com deploy próprio.',
+      meta1:'região: us-central1', meta2:'status: ativo' },
+    { id:'sql', label:'Cloud SQL', tag:'dados', cat:'deploy', x:6.0, y:-2.6, z:-1.0,
+      desc:'Banco de dados relacional gerenciado, provisionado e versionado via Terraform.',
+      meta1:'engine: postgres', meta2:'status: ativo' },
+    { id:'ops', label:'Cloud Operations Suite', tag:'observabilidade', cat:'deploy', x:9.4, y:0.6, z:0.4,
+      desc:'Centraliza logs e métricas de todos os serviços em produção.',
+      meta1:'logging + monitoring', meta2:'status: coletando' },
+  ];
+  const edges = [
+    ['github','actions'], ['actions','build-be'], ['actions','build-fe'],
+    ['build-be','registry'], ['build-fe','registry'],
+    ['registry','terraform'],
+    ['terraform','run-be'], ['terraform','run-fe'], ['terraform','sql'],
+    ['run-be','ops'], ['run-fe','ops'], ['sql','ops']
+  ];
+
+  // ---- scene setup ----
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x060810, 0.022);
+
+  const camera = new THREE.PerspectiveCamera(50, wrap.clientWidth/wrap.clientHeight, 0.1, 100);
+  camera.position.set(0, 3, 17);
+
+  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+  wrap.appendChild(renderer.domElement);
+
+  // lighting
+  scene.add(new THREE.AmbientLight(0x8899bb, 0.5));
+  const key = new THREE.PointLight(0x4F8DFF, 2.2, 40);
+  key.position.set(-8, 8, 10);
+  scene.add(key);
+  const key2 = new THREE.PointLight(0x34F5A3, 1.6, 40);
+  key2.position.set(10, 4, 6);
+  scene.add(key2);
+
+  // background starfield (subtle datacenter-at-night feel)
+  const starGeo = new THREE.BufferGeometry();
+  const starCount = 500;
+  const starPos = new Float32Array(starCount*3);
+  for(let i=0;i<starCount;i++){
+    starPos[i*3] = (Math.random()-0.5)*80;
+    starPos[i*3+1] = (Math.random()-0.5)*50;
+    starPos[i*3+2] = (Math.random()-0.5)*60 - 10;
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
+  const starMat = new THREE.PointsMaterial({ color:0x2A3350, size:0.06, transparent:true, opacity:0.6 });
+  scene.add(new THREE.Points(starGeo, starMat));
+
+  // group everything so we can rotate as one
+  const rig = new THREE.Group();
+  scene.add(rig);
+
+  const nodeMeshes = [];
+  const nodeMap = {};
+
+  function makeNode(d){
+    const color = COLORS[d.cat];
+    const geo = new THREE.IcosahedronGeometry(0.52, 1);
+    const mat = new THREE.MeshStandardMaterial({
+      color: color, emissive: color, emissiveIntensity: 0.35,
+      roughness:0.35, metalness:0.4
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(d.x, d.y, d.z);
+    mesh.userData = d;
+    rig.add(mesh);
+
+    // halo ring
+    const ringGeo = new THREE.RingGeometry(0.68, 0.78, 32);
+    const ringMat = new THREE.MeshBasicMaterial({ color: color, transparent:true, opacity:0.35, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.copy(mesh.position);
+    ring.userData.isRing = true;
+    rig.add(ring);
+    mesh.userData.ring = ring;
+
+    nodeMeshes.push(mesh);
+    nodeMap[d.id] = mesh;
+    return mesh;
+  }
+  nodeData.forEach(makeNode);
+
+  // edges as curved tubes + flowing particles
+  const particleGroups = [];
+  function makeEdge(fromId, toId){
+    const a = nodeMap[fromId].position;
+    const b = nodeMap[toId].position;
+    const mid = new THREE.Vector3().addVectors(a,b).multiplyScalar(0.5);
+    mid.y += 0.6 + Math.random()*0.4;
+    const curve = new THREE.QuadraticBezierCurve3(a.clone(), mid, b.clone());
+
+    const tubeGeo = new THREE.TubeGeometry(curve, 24, 0.012, 6, false);
+    const tubeMat = new THREE.MeshBasicMaterial({ color:0x2A3350, transparent:true, opacity:0.55 });
+    rig.add(new THREE.Mesh(tubeGeo, tubeMat));
+
+    // traveling particle
+    const pGeo = new THREE.SphereGeometry(0.05, 8, 8);
+    const pMat = new THREE.MeshBasicMaterial({ color: 0x9FD8FF });
+    const particle = new THREE.Mesh(pGeo, pMat);
+    rig.add(particle);
+    particleGroups.push({ curve, particle, t: Math.random(), speed: 0.0028 + Math.random()*0.002 });
+  }
+  edges.forEach(([f,t]) => makeEdge(f,t));
+
+  // labels via sprites (canvas-based text, lightweight)
+  function makeLabel(text, x, y, z){
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 64;
+    const ctx = c.getContext('2d');
+    ctx.font = '600 28px "Space Grotesk", sans-serif';
+    ctx.fillStyle = '#E7EAF2';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, 128, 40);
+    const tex = new THREE.CanvasTexture(c);
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent:true, depthWrite:false });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(2.6, 0.65, 1);
+    sprite.position.set(x, y+0.9, z);
+    rig.add(sprite);
+  }
+  nodeData.forEach(d => makeLabel(d.label, d.x, d.y, d.z));
+
+  // ---- orbit controls (lightweight manual implementation) ----
+  let isDragging = false, prevX=0, prevY=0;
+  let rotY = 0.35, rotX = 0.08;
+  let targetRotY = rotY, targetRotX = rotX;
+  let zoom = 17;
+  let targetZoom = zoom;
+
+  wrap.addEventListener('pointerdown', e => { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
+  window.addEventListener('pointerup', () => { isDragging = false; });
+  window.addEventListener('pointermove', e => {
+    if(!isDragging) return;
+    const dx = e.clientX - prevX, dy = e.clientY - prevY;
+    prevX = e.clientX; prevY = e.clientY;
+    targetRotY += dx * 0.005;
+    targetRotX += dy * 0.004;
+    targetRotX = Math.max(-0.6, Math.min(0.6, targetRotX));
+  });
+  wrap.addEventListener('wheel', e => {
+    e.preventDefault();
+    targetZoom += e.deltaY * 0.01;
+    targetZoom = Math.max(8, Math.min(28, targetZoom));
+  }, { passive:false });
+
+  // touch support
+  let lastTouchDist = null;
+  wrap.addEventListener('touchstart', e => {
+    if(e.touches.length === 1){ isDragging = true; prevX = e.touches[0].clientX; prevY = e.touches[0].clientY; }
+  }, {passive:true});
+  wrap.addEventListener('touchmove', e => {
+    if(e.touches.length === 1 && isDragging){
+      const dx = e.touches[0].clientX - prevX, dy = e.touches[0].clientY - prevY;
+      prevX = e.touches[0].clientX; prevY = e.touches[0].clientY;
+      targetRotY += dx * 0.006;
+      targetRotX += dy * 0.005;
+      targetRotX = Math.max(-0.6, Math.min(0.6, targetRotX));
+    } else if(e.touches.length === 2){
+      const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+      if(lastTouchDist !== null){
+        targetZoom += (lastTouchDist - d) * 0.02;
+        targetZoom = Math.max(8, Math.min(28, targetZoom));
+      }
+      lastTouchDist = d;
+    }
+  }, {passive:true});
+  wrap.addEventListener('touchend', () => { isDragging = false; lastTouchDist = null; });
+
+  // raycasting for click selection
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  let selected = null;
+
+  function setPointerFromEvent(e, isTouch){
+    const rect = wrap.getBoundingClientRect();
+    const clientX = isTouch ? e.changedTouches[0].clientX : e.clientX;
+    const clientY = isTouch ? e.changedTouches[0].clientY : e.clientY;
+    mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  }
+
+  function tryPick(e, isTouch){
+    setPointerFromEvent(e, isTouch);
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(nodeMeshes);
+    if(intersects.length > 0){
+      selectNode(intersects[0].object);
+    }
+  }
+
+  let downPos = null;
+  wrap.addEventListener('pointerdown', e => { downPos = {x:e.clientX, y:e.clientY}; });
+  wrap.addEventListener('pointerup', e => {
+    if(downPos && Math.hypot(e.clientX-downPos.x, e.clientY-downPos.y) < 6){
+      tryPick(e, false);
+    }
+  });
+
+  const tagColors = {
+    ci:     { bg:'rgba(79,141,255,0.14)', fg:'#4F8DFF' },
+    build:  { bg:'rgba(255,178,61,0.14)', fg:'#FFB23D' },
+    deploy: { bg:'rgba(52,245,163,0.14)', fg:'#34F5A3' }
+  };
+
+  function selectNode(mesh){
+    if(selected && selected.userData.ring){
+      selected.userData.ring.scale.set(1,1,1);
+    }
+    selected = mesh;
+    const d = mesh.userData;
+    panelTag.textContent = d.tag;
+    const c = tagColors[d.cat];
+    panelTag.style.background = c.bg;
+    panelTag.style.color = c.fg;
+    panelTitle.textContent = d.label;
+    panelDesc.textContent = d.desc;
+    panelMetaL.textContent = d.meta1;
+    panelMetaR.textContent = d.meta2;
+    panel.classList.add('visible');
+  }
+  panelClose.addEventListener('click', () => {
+    panel.classList.remove('visible');
+    if(selected){ selected = null; }
+  });
+
+  // resize handling
+  function onResize(){
+    camera.aspect = wrap.clientWidth / wrap.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+  }
+  window.addEventListener('resize', onResize);
+
+  // intro animation: camera flies in
+  let introT = 0;
+  const introDuration = reduceMotion ? 0 : 90;
+
+  let frame = 0;
+  function animate(){
+    frame++;
+    rotY += (targetRotY - rotY) * 0.08;
+    rotX += (targetRotX - rotX) * 0.08;
+    zoom += (targetZoom - zoom) * 0.08;
+
+    if(!reduceMotion){
+      rig.rotation.y = rotY + Math.sin(frame*0.0015)*0.02;
+      rig.rotation.x = rotX;
+    } else {
+      rig.rotation.y = rotY;
+      rig.rotation.x = rotX;
+    }
+
+    const camIntro = introT < introDuration ? (introDuration-introT)/introDuration * 6 : 0;
+    camera.position.set(0, 3 + camIntro*0.3, zoom + camIntro);
+    camera.lookAt(0,0.5,0);
+    introT++;
+
+    // pulse rings + bob nodes gently
+    nodeMeshes.forEach((m,i) => {
+      if(!reduceMotion){
+        m.position.y = m.userData.y + Math.sin(frame*0.02 + i)*0.06;
+        m.rotation.y += 0.004;
+      }
+      m.userData.ring.position.copy(m.position);
+      m.userData.ring.lookAt(camera.position);
+      const isSel = m === selected;
+      const pulse = 0.9 + Math.sin(frame*0.08 + i)*0.1;
+      m.userData.ring.scale.setScalar(isSel ? 1.5 : pulse);
+      m.material.emissiveIntensity = isSel ? 0.8 : 0.35;
+    });
+
+    // animate particles along edges
+    if(!reduceMotion){
+      particleGroups.forEach(pg => {
+        pg.t += pg.speed;
+        if(pg.t > 1) pg.t = 0;
+        const pos = pg.curve.getPoint(pg.t);
+        pg.particle.position.copy(pos);
+      });
+    }
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  }
+
+  loading.style.display = 'none';
+  animate();
+})();
+</script>
+
+</body>
+</html>
